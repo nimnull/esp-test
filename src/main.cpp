@@ -87,7 +87,7 @@ void setup() {
   xTaskCreate(
     parseLora, //  Pointer to the task entry function.
     "NAME", //  A descriptive name for the task.
-    1536, // The size of the task stack specified as the number of bytes
+    2048, // The size of the task stack specified as the number of bytes
     &ucParameterToPass, // Pointer that will be used as the parameter for the task being created.
     tskIDLE_PRIORITY, // The priority at which the task should run.
     &xTaskToNotify // Used to pass back a handle by which the created task can be referenced.
