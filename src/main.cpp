@@ -13,6 +13,8 @@
 
 long lastSendTime = 0;        // last send time
 int interval = 2000;          // interval between sends
+static TaskHandle_t xTaskToNotify = NULL;
+
 
 void sendMessage(String outgoing, uint32_t msgId) {
   LoRa.beginPacket();                   // start packet
@@ -28,30 +30,43 @@ void displayText(String text, int16_t x = 0, int16_t y = 0) {
   Serial.println(text);
 }
 
-void onReceive(int packetSize) {
+void IRAM_ATTR onReceive(int packetSize) {
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
   if (packetSize == 0) return;          // if there's no packet, return
+  configASSERT( xTaskToNotify != NULL );
+  vTaskNotifyGiveFromISR(xTaskToNotify, &xHigherPriorityTaskWoken);
+  // context switch
+  if(xHigherPriorityTaskWoken) portYIELD_FROM_ISR();
+}
 
-  // read packet header bytes:
-  int recipient = LoRa.read();          // recipient address
-  byte sender = LoRa.read();            // sender address
-  byte incomingMsgId = LoRa.read();     // incoming msg ID
-  byte incomingLength = LoRa.read();    // incoming msg length
+void parseLora(void * pvParameters ) {
+  while (true) {
+    if (ulTaskNotifyTake(pdTRUE, portMAX_DELAY)){
+      int recipient = LoRa.read();          // recipient address
+      byte sender = LoRa.read();            // sender address
+      byte incomingMsgId = LoRa.read();     // incoming msg ID
+      byte incomingLength = LoRa.read();    // incoming msg length
 
-  String incoming = "";
+      String incoming = "";
 
-  while (LoRa.available()) {
-    incoming += (char)LoRa.read();
-  }
+      while (LoRa.available()) {
+        incoming += (char)LoRa.read();
+      }
 
-  if (incomingLength != incoming.length()) {   // check length for error
-    displayText("error: message length does not match");
-    return;                             // skip rest of function
-  }
+      if (incomingLength != incoming.length()) {   // check length for error
+        displayText("error: message length does not match");
+        return;                             // skip rest of function
+      }
 
-  // if the recipient isn't this device or broadcast,
-  if (recipient != localAddress && recipient != 0xFF) {
-    displayText("This message is not for me.");
-    return;                             // skip rest of function
+      // if the recipient isn't this device or broadcast,
+      if (recipient != localAddress && recipient != 0xFF) {
+        displayText("This message is not for me.");
+        return;                             // skip rest of function
+      }
+      displayText("RSSI: " + String(LoRa.packetRssi()));
+      displayText("SNR: " + String(LoRa.packetSnr()));
+    }
   }
 }
 
@@ -67,9 +82,20 @@ void setupLora(int ss, int reset, int dio0) {
 void setup() {
   Serial.begin(9600);
   // HW setup
-  setupLora(csPin, resetPin, irqPin);
+  static uint8_t ucParameterToPass;
+
+  xTaskCreate(
+    parseLora, //  Pointer to the task entry function.
+    "NAME", //  A descriptive name for the task.
+    1536, // The size of the task stack specified as the number of bytes
+    &ucParameterToPass, // Pointer that will be used as the parameter for the task being created.
+    tskIDLE_PRIORITY, // The priority at which the task should run.
+    &xTaskToNotify // Used to pass back a handle by which the created task can be referenced.
+  );
 
   displayText("LoRa Receiver", 0, 10);
+
+  setupLora(csPin, resetPin, irqPin);
   LoRa.onReceive(onReceive);
   LoRa.receive();
 }
