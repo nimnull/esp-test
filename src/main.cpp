@@ -1,15 +1,22 @@
 #include "esp_system.h"
 #include <Arduino.h>
 #include <LoRa.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128    // OLED display width, in pixels
+#define SCREEN_HEIGHT 64    // OLED display height, in pixels
+#define OLED_RESET -1       // Reset pin # (or -1 if sharing Arduino reset pin)
 
 #define csPin 5          // LoRa radio chip select ss
 #define resetPin 14       // LoRa radio reset
 #define irqPin 2         // change for your board; must be a hardware interrupt pin pio0
 
-#define localAddress 0xBB     // address of this device
-#define destination 0xFF      // destination to send to
-// #define localAddress 0xFF     // address of this device
-// #define destination 0xBB      // destination to send to
+#define localAddress 0xFF     // address of this device
+#define destination 0xBB      // destination to send to
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 long lastSendTime = 0;        // last send time
 int interval = 2000;          // interval between sends
@@ -65,7 +72,16 @@ void parseLora(void * pvParameters ) {
         return;                             // skip rest of function
       }
       displayText("RSSI: " + String(LoRa.packetRssi()));
-      displayText("SNR: " + String(LoRa.packetSnr()));
+      displayText("Snr: " + String(LoRa.packetSnr()));
+      // display.clearDisplay();
+      // display.setTextSize(1);
+      // display.setTextColor(WHITE);
+      // display.setCursor(0, 0);
+      // display.println("From: 0x" + String(sender, HEX) + " To: 0x" + String(recipient, HEX));
+      // display.println("Message ID: " + String(incomingMsgId));
+      // display.println("RSSI: " + String(LoRa.packetRssi()));
+      // display.println("Snr: " + String(LoRa.packetSnr()));
+      // display.display();
     }
   }
 }
@@ -84,7 +100,7 @@ void setup() {
 
   xTaskCreate(
     parseLora, //  Pointer to the task entry function.
-    "NAME", //  A descriptive name for the task.
+    "Lora_Reciever", //  A descriptive name for the task.
     2048, // The size of the task stack specified as the number of bytes
     &ucParameterToPass, // Pointer that will be used as the parameter for the task being created.
     tskIDLE_PRIORITY, // The priority at which the task should run.
