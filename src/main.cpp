@@ -74,8 +74,6 @@ void parseLora(void * pvParameters ) {
 void setupLora(int ss, int reset, int dio0) {
   LoRa.setPins(ss, reset, dio0);// set CS, reset, IRQ pin
   while (!LoRa.begin(433E6)) delay(100);  // initialize ratio at 433 MHz
-  LoRa.setGain(6);
-  LoRa.setTxPower(20);
 }
 
 
