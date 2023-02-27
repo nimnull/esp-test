@@ -34,7 +34,12 @@ void sendMessage(String outgoing, uint32_t msgId) {
 }
 
 void displayText(String text, int16_t x = 0, int16_t y = 0) {
-  Serial.println(text);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(x, y);
+  display.println(text);
+  display.display();
 }
 
 void IRAM_ATTR onReceive(int packetSize) {
@@ -71,17 +76,16 @@ void parseLora(void * pvParameters ) {
         displayText("This message is not for me.");
         return;                             // skip rest of function
       }
-      displayText("RSSI: " + String(LoRa.packetRssi()));
-      displayText("Snr: " + String(LoRa.packetSnr()));
-      // display.clearDisplay();
-      // display.setTextSize(1);
-      // display.setTextColor(WHITE);
-      // display.setCursor(0, 0);
-      // display.println("From: 0x" + String(sender, HEX) + " To: 0x" + String(recipient, HEX));
-      // display.println("Message ID: " + String(incomingMsgId));
-      // display.println("RSSI: " + String(LoRa.packetRssi()));
-      // display.println("Snr: " + String(LoRa.packetSnr()));
-      // display.display();
+
+      display.clearDisplay();
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
+      display.setCursor(0, 0);
+      display.println("From: 0x" + String(sender, HEX) + " To: 0x" + String(recipient, HEX));
+      display.println("Message ID: " + String(incomingMsgId));
+      display.println("RSSI: " + String(LoRa.packetRssi()));
+      display.println("Snr: " + String(LoRa.packetSnr()));
+      display.display();
     }
   }
 }
@@ -96,6 +100,10 @@ void setupLora(int ss, int reset, int dio0) {
 void setup() {
   Serial.begin(9600);
   // HW setup
+  while(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) delay(100);
+  setupLora(csPin, resetPin, irqPin);
+
+  // Setup task
   static uint8_t ucParameterToPass;
 
   xTaskCreate(
@@ -109,14 +117,13 @@ void setup() {
 
   displayText("LoRa Receiver", 0, 10);
 
-  setupLora(csPin, resetPin, irqPin);
   LoRa.onReceive(onReceive);
   LoRa.receive();
 }
 
 void loop() {
-  
-  if (millis() - lastSendTime > interval) {    
+
+  if (millis() - lastSendTime > interval) {
     String message = String("HeLoRa World! ") + String(interval);   // send a message
     sendMessage(message, interval);
     lastSendTime = millis();            // timestamp the message
